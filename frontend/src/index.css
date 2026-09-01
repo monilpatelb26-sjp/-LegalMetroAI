@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0F1B2D;
+  --color-slateBlue: #1C3D5A;
+  --color-compliant: #1E7A4C;
+  --color-violation: #E08A1E;
+  --color-critical: #B23A2E;
+  --color-paper: #F7F5F0;
+
+  --font-sans: "Inter", sans-serif;
+  --font-serif: "Fraunces", serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* Custom Stamps */
+.stamp-compliant {
+  display: inline-block;
+  padding: 0.25rem 1rem;
+  border: 3px solid var(--color-compliant);
+  color: var(--color-compliant);
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 0.25rem;
+  transform: rotate(-3deg);
+  opacity: 0.9;
+  background: transparent;
+  box-shadow: none;
+}
+
+.stamp-violation {
+  display: inline-block;
+  padding: 0.25rem 1rem;
+  border: 3px solid var(--color-violation);
+  color: var(--color-violation);
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 0.25rem;
+  transform: rotate(2deg);
+  opacity: 0.9;
+  background: transparent;
+  box-shadow: none;
+}
+
+.stamp-critical {
+  display: inline-block;
+  padding: 0.25rem 1rem;
+  border: 3px solid var(--color-critical);
+  color: var(--color-critical);
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 0.25rem;
+  transform: rotate(-2deg);
+  opacity: 0.9;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Laser Scanner Animation */
+.scanner-laser {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--color-critical);
+  box-shadow: 0 0 10px 2px rgba(178, 58, 46, 0.7);
+  animation: scan-laser 2s infinite ease-in-out alternate;
+  z-index: 10;
+}
+
+@keyframes scan-laser {
+  0% { top: 5%; }
+  100% { top: 95%; }
+}
