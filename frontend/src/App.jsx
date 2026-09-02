@@ -224,13 +224,12 @@ function App() {
       })
       fetchInspections()
       if (!user) {
-        alert('Success! Your scan has been automatically submitted to the Government Admin Dashboard as a public lead.');
-        setFile(null);
-        setPreviewUrl(null);
+        // Just show the result, don't clear yet!
+        setSubmitSuccess(false);
       }
     } catch (error) {
       console.error("Error uploading file:", error)
-      if (!user) alert('Failed to submit. Please try again.');
+      if (!user) alert('Failed to scan. Please try again.');
     } finally {
       setUploading(false)
     }
@@ -821,8 +820,8 @@ function App() {
                   <Clock size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-ink leading-tight font-serif">Inspection Database</h2>
-                  <p className="text-sm text-slateBlue/80 mt-1">Search and manage compliance records</p>
+                  <h2 className="text-lg font-bold text-ink leading-tight font-serif">Inspections & Public Leads Database</h2>
+                  <p className="text-sm text-slateBlue/80 mt-1">Search and manage official inspections and citizen reports</p>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row items-center gap-4 mt-4 md:mt-0">
