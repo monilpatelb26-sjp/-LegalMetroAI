@@ -66,6 +66,8 @@ function App() {
   const [file, setFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [currentInspection, setCurrentInspection] = useState(null)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
   
   const [searchQuery, setSearchQuery] = useState('')
   const [currentView, setCurrentView] = useState(() => localStorage.getItem('legal_user') ? 'dashboard' : 'scanner');
