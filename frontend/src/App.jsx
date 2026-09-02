@@ -40,23 +40,25 @@ function App() {
     return saved ? JSON.parse(saved) : { mobile: '', location: '', customPhoto: null };
   });
 
-  const [userRole, setUserRole] = useState(() => localStorage.getItem('legal_user_role') || 'inspector');
-  const [loginRole, setLoginRole] = useState('inspector');
+  const [userRole, setUserRole] = useState('admin');
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const handleLoginSuccess = (credentialResponse) => {
     const decoded = jwtDecode(credentialResponse.credential);
     setUser(decoded);
-    setUserRole(loginRole);
+    setUserRole('admin');
     localStorage.setItem('legal_user', JSON.stringify(decoded));
-    localStorage.setItem('legal_user_role', loginRole);
+    localStorage.setItem('legal_user_role', 'admin');
+    setShowLoginModal(false);
+    setCurrentView('dashboard');
   };
 
   const handleLogout = () => {
     setUser(null);
     setIsProfileMenuOpen(false);
-    setCurrentView('dashboard');
+    setCurrentView('scanner');
     localStorage.removeItem('legal_user');
   };
   const [inspections, setInspections] = useState([])
@@ -66,7 +68,7 @@ function App() {
   const [previewUrl, setPreviewUrl] = useState(null)
   
   const [searchQuery, setSearchQuery] = useState('')
-  const [currentView, setCurrentView] = useState('dashboard') // 'dashboard', 'scanner'
+  const [currentView, setCurrentView] = useState(() => localStorage.getItem('legal_user') ? 'dashboard' : 'scanner');
   const [scanMode, setScanMode] = useState('file') // 'file', 'camera', 'url'
   const [urlInput, setUrlInput] = useState('')
   const [filterStatus, setFilterStatus] = useState('ALL') // ALL, COMPLIANT, NON_COMPLIANT
@@ -221,8 +223,14 @@ function App() {
         body: formData,
       })
       fetchInspections()
+      if (!user) {
+        alert('Success! Your scan has been automatically submitted to the Government Admin Dashboard as a public lead.');
+        setFile(null);
+        setPreviewUrl(null);
+      }
     } catch (error) {
       console.error("Error uploading file:", error)
+      if (!user) alert('Failed to submit. Please try again.');
     } finally {
       setUploading(false)
     }
@@ -386,150 +394,6 @@ function App() {
   }, [manufacturerViolations])
 
   // Simple routing for the public Citizen Report portal using Query Params to avoid Vercel 404s
-  const isPublicReportRoute = window.location.search.includes('report=true') || window.location.pathname === '/report';
-  const [complaintForm, setComplaintForm] = useState({ shop_name: '', shop_address: '', contact_info: '', description: '', file: null });
-  const [complaintSubmitting, setComplaintSubmitting] = useState(false);
-  const [complaintSuccess, setComplaintSuccess] = useState(false);
-
-  if (isPublicReportRoute) {
-    return (
-      <div className="min-h-screen bg-paper flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white p-6 shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] border-2 border-ink">
-          <div className="flex items-center gap-3 mb-6 border-b border-ink/10 pb-4">
-            <div className="bg-slateBlue p-2 rounded-none"><ShieldCheck size={24} className="text-white" /></div>
-            <div>
-              <h1 className="text-xl font-bold font-serif text-ink leading-tight">LegalMetro Citizen Portal</h1>
-              <p className="text-xs text-slate-500">Report violations securely</p>
-            </div>
-          </div>
-          
-          {complaintSuccess ? (
-            <div className="text-center py-8">
-              <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
-              <h2 className="text-lg font-bold text-ink">Report Submitted!</h2>
-              <p className="text-sm text-slateBlue mt-2">Thank you for being a vigilant citizen. Our officers have been notified.</p>
-              <button onClick={() => { setComplaintSuccess(false); setComplaintForm({shop_name: '', shop_address: '', contact_info: '', description: '', file: null}); }} className="mt-6 px-4 py-2 bg-ink text-white font-medium text-sm">Submit Another</button>
-            </div>
-          ) : (
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              if (!complaintForm.file) return alert("Please attach a photo of the product/violation");
-              setComplaintSubmitting(true);
-              const formData = new FormData();
-              formData.append('image', complaintForm.file);
-              formData.append('shop_name', complaintForm.shop_name);
-              formData.append('shop_address', complaintForm.shop_address);
-              formData.append('contact_info', complaintForm.contact_info);
-              formData.append('description', complaintForm.description);
-              try {
-                const res = await fetch(`${API_BASE_URL}/complaints/`, { method: 'POST', body: formData });
-                if (res.ok) setComplaintSuccess(true);
-                else alert("Failed to submit. Please try again.");
-              } catch (error) {
-                alert("Error connecting to server");
-              }
-              setComplaintSubmitting(false);
-            }} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-ink uppercase mb-1">Shop/Market Name *</label>
-                <input required type="text" className="w-full p-2 border border-slate-300 text-sm outline-none" placeholder="e.g. Gupta Store" value={complaintForm.shop_name} onChange={e => setComplaintForm({...complaintForm, shop_name: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink uppercase mb-1">Location/Address *</label>
-                <input required type="text" className="w-full p-2 border border-slate-300 text-sm outline-none" placeholder="e.g. Connaught Place, Delhi" value={complaintForm.shop_address} onChange={e => setComplaintForm({...complaintForm, shop_address: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink uppercase mb-1">Photo Evidence *</label>
-                <input required type="file" accept="image/*" className="w-full p-2 border border-slate-300 text-sm bg-slate-50" onChange={e => setComplaintForm({...complaintForm, file: e.target.files[0]})} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink uppercase mb-1">Description of Issue</label>
-                <textarea rows="2" className="w-full p-2 border border-slate-300 text-sm outline-none" placeholder="e.g. MRP was scratched off" value={complaintForm.description} onChange={e => setComplaintForm({...complaintForm, description: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink uppercase mb-1">Your Mobile/Email (Optional)</label>
-                <input type="text" className="w-full p-2 border border-slate-300 text-sm outline-none" placeholder="For updates" value={complaintForm.contact_info} onChange={e => setComplaintForm({...complaintForm, contact_info: e.target.value})} />
-              </div>
-              <button disabled={complaintSubmitting} type="submit" className="w-full py-3 bg-amber-500 text-ink font-bold hover:bg-amber-400 transition-colors shadow-[2px_2px_0px_0px_rgba(15,27,45,1)] border border-ink disabled:opacity-50">
-                {complaintSubmitting ? 'Uploading...' : 'Submit Official Report'}
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // If not authenticated, render Login Screen
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-paper flex">
-        {/* Left Side - Branding */}
-        <div className="hidden lg:flex w-1/2 bg-ink text-white flex-col justify-center items-start px-16 relative overflow-hidden">
-          <div className="absolute inset-0 bg-slateBlue/20 mix-blend-multiply" />
-          <div className="relative z-10">
-            <div className="bg-slateBlue p-4 rounded-none inline-block mb-8 shadow-2xl">
-              <ShieldCheck size={48} className="text-white" />
-            </div>
-            <h1 className="text-5xl font-extrabold tracking-tight mb-4 font-serif">LegalMetro AI</h1>
-            <p className="text-xl text-slate-300 mb-8 max-w-lg">
-              Automated Compliance Verification System for the Department of Legal Metrology, Government of India.
-            </p>
-            <div className="flex gap-4 text-sm font-medium">
-              <span className="flex items-center gap-2 bg-ink/90/50 px-4 py-2 rounded-full border border-slate-700">
-                <CheckCircle size={16} className="text-emerald-400"/> AI OCR Engine
-              </span>
-              <span className="flex items-center gap-2 bg-ink/90/50 px-4 py-2 rounded-full border border-slate-700">
-                <AlertTriangle size={16} className="text-amber-400"/> Rule Validation
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        {/* Right Side - Form */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
-          <div className="w-full max-w-md space-y-8">
-            <div className="text-center lg:text-left">
-              <h2 className="text-3xl font-bold text-ink font-serif">Enforcement Portal</h2>
-              <p className="mt-2 text-slateBlue/80">Sign in to your officer account to continue.</p>
-            </div>
-            
-            <div className="space-y-6 pt-6 border-t border-ink/10">
-              <div>
-                <label className="block text-sm font-bold text-ink/80 mb-2 uppercase tracking-wide">Select Your Role</label>
-                <select 
-                  className="block w-full px-4 py-3 border-2 border-slate-300 rounded-none text-ink focus:ring-0 focus:border-slateBlue outline-none transition-all shadow-[2px_2px_0px_0px_rgba(15,27,45,0.2)] bg-white font-medium mb-6"
-                  value={loginRole}
-                  onChange={e => setLoginRole(e.target.value)}
-                >
-                  <option value="inspector">Field Inspector (Scanner Access)</option>
-                  <option value="admin">Super Admin (Full Access)</option>
-                </select>
-              </div>
-
-              <GoogleOAuthProvider clientId={CLIENT_ID}>
-                <div className="flex justify-center border border-ink/20 p-6 bg-slate-50 shadow-[4px_4px_0px_0px_rgba(15,27,45,1)]">
-                  <GoogleLogin
-                    onSuccess={handleLoginSuccess}
-                    onError={() => console.log('Login Failed')}
-                    useOneTap
-                    theme="outline"
-                    size="large"
-                    text="continue_with"
-                    shape="rectangular"
-                  />
-                </div>
-              </GoogleOAuthProvider>
-            </div>
-            <div className="text-center mt-6">
-              <p className="text-xs text-slate-400">SIH Hackathon Prototype Version</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   const formatChatMessage = (text) => {
     const regex = /(Rule\s+\d+|Section\s+\d+|IPC\s+\d+)/gi;
     const parts = text.split(regex);
@@ -579,7 +443,7 @@ function App() {
             </div>
 
             <div className="flex items-center gap-4 relative">
-              <span className="text-sm font-medium text-slate-300 hidden sm:inline">{user?.name || 'Enforcement Officer'}</span>
+              {!user ? (<button onClick={() => setShowLoginModal(true)} className="px-4 py-1.5 text-sm font-bold bg-amber-500 text-ink shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:bg-amber-400 transition-colors">Admin Login</button>) : (<><span className="text-sm font-medium text-slate-300 hidden sm:inline">{user?.name || 'Super Admin'}</span>
               <button 
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} 
                 className="h-8 w-8 rounded-full bg-slate-700 hover:ring-2 hover:ring-white flex items-center justify-center border border-slate-600 transition-all cursor-pointer overflow-hidden"
@@ -613,7 +477,7 @@ function App() {
                     🚪 Logout
                   </button>
                 </div>
-              )}
+              )}</>)}
             </div>
           </div>
         </div>
@@ -622,7 +486,7 @@ function App() {
       <main className="w-full mx-auto px-4 sm:px-8 lg:px-12 py-8 space-y-8">
         
         {/* Analytics Section */}
-        {currentView === 'dashboard' && userRole === 'admin' && (
+        {currentView === 'dashboard' && userRole === 'admin' && user && (
         <>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           
@@ -852,16 +716,17 @@ function App() {
         </>
         )}
         {currentView === 'scanner' && (
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+        <div className={user ? "grid grid-cols-1 xl:grid-cols-4 gap-8" : "flex justify-center mt-12"}>
           
           {/* Upload Widget */}
-          <div className="xl:col-span-1 space-y-6">
+          <div className={`${user ? 'xl:col-span-1' : 'w-full max-w-2xl'} space-y-6`}>
+            {!user && (<div className="bg-amber-100 border-2 border-amber-500 p-6 shadow-[4px_4px_0px_0px_rgba(245,158,11,1)] mb-8 text-center"><h2 className="text-2xl font-bold font-serif text-amber-900 mb-2">Citizen Reporting Portal</h2><p className="text-amber-800">Use this AI scanner to automatically detect and report violations on packaged commodities directly to the Legal Metrology Department.</p></div>)}
             <div className="bg-white rounded-none border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] rounded-none overflow-hidden">
               <div className="p-6 border-b border-ink/10 bg-paper flex justify-between items-center">
                 <div>
                   <h2 className="text-lg font-semibold text-ink flex items-center gap-2 font-serif">
                     <ShieldCheck size={20} className="text-slateBlue"/>
-                    New Scan
+                    {user ? 'New Scan' : 'Submit a Violation'}
                   </h2>
                   <p className="text-sm text-slateBlue/80 mt-1">Upload or capture a product label</p>
                 </div>
@@ -908,7 +773,7 @@ function App() {
                       ) : (
                         <>
                           <Search size={20} />
-                          Analyze Compliance
+                          {!user ? 'Scan & Submit to Govt' : 'Analyze Compliance'}
                         </>
                       )}
                     </button>
@@ -930,7 +795,7 @@ function App() {
                       className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-compliant hover:bg-emerald-700 text-white rounded-none font-medium transition-colors shadow-sm"
                     >
                       <Camera size={20} />
-                      Capture & Analyze
+                      {!user ? 'Capture & Submit to Govt' : 'Capture & Analyze'}
                     </button>
                   </div>
                 ) : (
@@ -948,7 +813,7 @@ function App() {
           </div>
 
         {/* Inspections History Table */}
-        <div className="xl:col-span-3 bg-white rounded-none border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] rounded-none overflow-hidden">
+        {user && (<div className="xl:col-span-3 bg-white rounded-none border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] rounded-none overflow-hidden">
           <div className="p-6 border-b border-ink/20 bg-paper/50">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1234,9 +1099,9 @@ function App() {
                 </table>
               </div>
             </div>
-          </div>
           )}
-
+        </div>
+        )}
         {/* Profile View */}
         {currentView === 'profile' && (
           <div className="max-w-3xl mx-auto mt-4">
@@ -1452,6 +1317,32 @@ function App() {
         </div>
 
       </main>
+      {/* Admin Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-ink/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border-2 border-ink shadow-[8px_8px_0px_0px_rgba(15,27,45,1)] p-8 max-w-sm w-full relative">
+            <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-critical">
+              <X size={24} />
+            </button>
+            <div className="text-center mb-6">
+              <ShieldCheck size={48} className="text-slateBlue mx-auto mb-4" />
+              <h2 className="text-2xl font-bold font-serif text-ink">Admin Portal</h2>
+              <p className="text-sm text-slate-500 mt-2">Sign in to access enforcement tools.</p>
+            </div>
+            <GoogleOAuthProvider clientId={CLIENT_ID}>
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleLoginSuccess}
+                  onError={() => console.log('Login Failed')}
+                  useOneTap
+                  theme="outline"
+                  size="large"
+                />
+              </div>
+            </GoogleOAuthProvider>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
