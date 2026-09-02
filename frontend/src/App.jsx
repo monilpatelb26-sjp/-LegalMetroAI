@@ -218,14 +218,20 @@ function App() {
       // Evidence & Audit Trail: Digital Signature / Inspector ID
       formData.append('inspector_id', user ? (user.name || 'INSP-LM-4402 (Admin)') : 'PUBLIC');
 
-      await fetch(`${API_BASE_URL}/inspections/upload`, {
+      const response = await fetch(`${API_BASE_URL}/inspections/upload`, {
         method: 'POST',
         body: formData,
       })
+      if (!response.ok) throw new Error("Upload failed");
+      const result = await response.json();
+      
       fetchInspections()
       if (!user) {
-        // Just show the result, don't clear yet!
+        setCurrentInspection(result);
         setSubmitSuccess(false);
+      } else {
+        setFile(null);
+        setPreviewUrl(null);
       }
     } catch (error) {
       console.error("Error uploading file:", error)
@@ -964,6 +970,54 @@ function App() {
                 )}
               </div>
             </div>
+            
+            {/* Public Results Card */}
+            {!user && currentInspection && (
+              <div className="bg-white rounded-none border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] p-6">
+                <h3 className="text-lg font-bold font-serif text-ink mb-4 border-b border-ink/10 pb-2">Analysis Results</h3>
+                
+                <div className="mb-4 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 text-sm">Brand:</span>
+                    <span className="font-medium text-ink">{currentInspection.extracted_data?.brand_name || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 text-sm">MRP:</span>
+                    <span className="font-medium text-ink">{currentInspection.extracted_data?.mrp || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 text-sm">Net Qty:</span>
+                    <span className="font-medium text-ink">{currentInspection.extracted_data?.net_quantity || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 text-sm">Status:</span>
+                    <span className={`font-bold ${currentInspection.is_compliant ? 'text-emerald-600' : 'text-critical'}`}>
+                      {currentInspection.is_compliant ? 'COMPLIANT' : 'VIOLATION FOUND'}
+                    </span>
+                  </div>
+                </div>
+
+                {submitSuccess ? (
+                  <div className="mt-6 bg-emerald-100 border border-emerald-500 text-emerald-800 p-4 text-center rounded-none font-bold shadow-[2px_2px_0px_0px_rgba(16,185,129,1)]">
+                    ✅ Report Sent to Admin Dashboard!
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      setSubmitSuccess(true);
+                      setTimeout(() => {
+                         setFile(null);
+                         setPreviewUrl(null);
+                         setCurrentInspection(null);
+                      }, 3000);
+                    }} 
+                    className="w-full mt-4 bg-amber-500 hover:bg-amber-400 text-ink font-bold py-3 px-4 border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] transition-transform active:translate-y-1 active:shadow-none flex items-center justify-center gap-2"
+                  >
+                    SEND REPORT TO ADMIN
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
         {/* Inspections History Table */}
