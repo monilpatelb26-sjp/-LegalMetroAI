@@ -793,6 +793,7 @@ function App() {
                     <p className="text-xs text-slateBlue/80 mt-0.5">Export a legally compliant PDF Report or click "Draft Notice" to automatically email the manufacturer.</p>
                   </div>
                 </div>
+              </div>
             </div>
           </div>
           
