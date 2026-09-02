@@ -711,7 +711,162 @@ function App() {
                 </tbody>
               </table>
             </div>
+
           </div>
+          {/* Public Complaints & Leads Table */}
+          <div className="mt-8 bg-white rounded-none border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] rounded-none overflow-hidden">
+            <div className="p-6 border-b border-ink/20 bg-amber-50">
+              <h2 className="text-xl font-bold text-ink mb-2 flex items-center gap-2 font-serif">
+                <AlertTriangle className="text-amber-500" /> Public Complaints & Leads
+              </h2>
+              <p className="text-sm text-amber-800">Reports submitted anonymously by citizens via the public portal.</p>
+            </div>
+            
+            <div className="overflow-auto max-h-[600px] relative">
+              <table className="w-full">
+                <thead className="sticky top-0 z-10 bg-paper shadow-sm">
+                  <tr className="text-left text-xs font-semibold text-slateBlue/80 uppercase tracking-wider border-b border-ink/20">
+                    <th className="px-6 py-4 w-24">Image</th>
+                    <th className="px-6 py-4 w-48">Date & Location</th>
+                    <th className="px-6 py-4 w-1/3">Extracted Label Data</th>
+                    <th className="px-6 py-4">Status & Violations</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredInspections.filter(i => i.inspector_id === 'PUBLIC').length > 0 ? (
+                    filteredInspections.filter(i => i.inspector_id === 'PUBLIC').map((insp) => (
+                      <tr key={insp.id} className="hover:bg-paper/50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="w-16 h-16 rounded-none overflow-hidden border border-ink/20 shadow-sm bg-white">
+                            <img 
+                              src={`${API_BASE_URL.replace('/api/v1', '')}/${insp.image_paths[0]}`}
+                              alt="Product Label" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.target.src = 'https://via.placeholder.com/150?text=No+Image' }}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-medium text-ink">
+                            {new Date(insp.scan_date).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            {new Date(insp.scan_date).toLocaleTimeString()}
+                          </div>
+                          <div className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-slate-100 rounded-none text-xs text-slate-600 border border-slate-200">
+                            <MapPin size={10} className="text-red-500" />
+                            {insp.location_gps || 'Unknown'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="space-y-1.5 text-sm">
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Brand:</span>
+                              <span className="col-span-2 text-ink font-medium">{insp.extracted_data?.brand_name || 'N/A'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-slate-500 text-xs uppercase tracking-wider font-semibold">MRP:</span>
+                              <span className="col-span-2 text-ink font-medium">{insp.extracted_data?.mrp || 'N/A'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Net Qty:</span>
+                              <span className="col-span-2 text-ink">{insp.extracted_data?.net_quantity || 'N/A'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Mfg/Pkd Date:</span>
+                              <span className="col-span-2 text-ink">{insp.extracted_data?.mfg_date || insp.extracted_data?.pkd_date || 'N/A'}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Consumer Care:</span>
+                              <span className="col-span-2 text-ink">{insp.extracted_data?.consumer_care_details || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col items-start gap-2">
+                            {insp.is_compliant ? (
+                              <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-none border border-emerald-200 uppercase tracking-wide">
+                                <CheckCircle size={12} /> Compliant
+                              </span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-none border border-amber-300 uppercase tracking-wide shadow-sm">
+                                  Violation
+                                </span>
+                                {(insp.validation_results?.violations || []).some(v => v.includes("MRP")) && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-none border border-amber-200 uppercase tracking-wide">
+                                    E-Challan: ₹55,000
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            
+                            {!insp.is_compliant && insp.validation_results?.violations && (
+                              <ul className="mt-2 space-y-1">
+                                {insp.validation_results.violations.map((violation, idx) => (
+                                  <li key={idx} className="text-xs text-critical flex items-start gap-1.5">
+                                    <span className="text-critical/50 mt-0.5">•</span>
+                                    {violation}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex items-center gap-2">
+                              <button 
+                                onClick={async () => {
+                                  if (window.confirm("Are you sure you want to delete this report?")) {
+                                    try {
+                                      await fetch(`${API_BASE_URL}/inspections/${insp.id}`, { method: 'DELETE' });
+                                      fetchInspections();
+                                    } catch(e) {}
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-critical rounded-none text-xs font-medium transition-colors border border-slate-200 flex items-center gap-1"
+                              >
+                                <Trash2 size={12} /> Delete
+                              </button>
+                              <button className="px-3 py-1.5 bg-red-50 text-critical hover:bg-red-100 rounded-none text-xs font-medium transition-colors border border-red-200 flex items-center gap-1 whitespace-nowrap">
+                                <FileText size={12} /> PDF Report
+                              </button>
+                            </div>
+                            
+                            {!insp.is_compliant && (
+                              <div className="flex items-center gap-2 mt-1">
+                                <button className="px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-none text-xs font-medium transition-colors border border-amber-200 flex items-center gap-1 whitespace-nowrap w-full justify-center">
+                                  <AlertTriangle size={12} /> Warning Notice
+                                </button>
+                                <button 
+                                  onClick={() => handleSendEmail(insp)}
+                                  className="px-3 py-1.5 bg-red-50 text-critical hover:bg-red-100 rounded-none text-xs font-medium transition-colors border border-red-200 flex items-center gap-1 whitespace-nowrap w-full justify-center"
+                                >
+                                  <Mail size={12} /> Penalty Challan
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="text-center py-12">
+                        <div className="flex flex-col items-center justify-center text-slate-400">
+                          <Clock size={32} className="mb-2" />
+                          <p>No public reports found</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </>
         )}
         {currentView === 'scanner' && (
@@ -820,8 +975,8 @@ function App() {
                   <Clock size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-ink leading-tight font-serif">Inspections & Public Leads Database</h2>
-                  <p className="text-sm text-slateBlue/80 mt-1">Search and manage official inspections and citizen reports</p>
+                  <h2 className="text-lg font-bold text-ink leading-tight font-serif">Inspection Database</h2>
+                  <p className="text-sm text-slateBlue/80 mt-1">Search and manage compliance records</p>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row items-center gap-4 mt-4 md:mt-0">
@@ -891,8 +1046,8 @@ function App() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredInspections.length > 0 ? (
-                  filteredInspections.map((insp) => (
+                {filteredInspections.filter(i => i.inspector_id !== 'PUBLIC').length > 0 ? (
+                  filteredInspections.filter(i => i.inspector_id !== 'PUBLIC').map((insp) => (
                     <tr key={insp.id} className="hover:bg-paper/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="w-16 h-16 rounded-none overflow-hidden border border-ink/20 shadow-sm bg-white">
