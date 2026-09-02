@@ -385,8 +385,8 @@ function App() {
       .slice(0, 5); // Top 5
   }, [manufacturerViolations])
 
-  // Simple routing for the public Citizen Report portal
-  const isPublicReportRoute = window.location.pathname === '/report';
+  // Simple routing for the public Citizen Report portal using Query Params to avoid Vercel 404s
+  const isPublicReportRoute = window.location.search.includes('report=true') || window.location.pathname === '/report';
   const [complaintForm, setComplaintForm] = useState({ shop_name: '', shop_address: '', contact_info: '', description: '', file: null });
   const [complaintSubmitting, setComplaintSubmitting] = useState(false);
   const [complaintSuccess, setComplaintSuccess] = useState(false);
