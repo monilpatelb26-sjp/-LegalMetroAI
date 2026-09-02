@@ -216,7 +216,7 @@ function App() {
       }
       
       // Evidence & Audit Trail: Digital Signature / Inspector ID
-      formData.append('inspector_id', 'INSP-LM-4402 (Admin)');
+      formData.append('inspector_id', user ? (user.name || 'INSP-LM-4402 (Admin)') : 'PUBLIC');
 
       await fetch(`${API_BASE_URL}/inspections/upload`, {
         method: 'POST',
