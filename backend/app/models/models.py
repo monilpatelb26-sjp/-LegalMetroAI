@@ -41,3 +41,18 @@ class Inspection(Base):
 
     # Relationships
     product = relationship("Product", back_populates="inspections")
+
+class CitizenComplaint(Base):
+    __tablename__ = "citizen_complaints"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shop_name = Column(String, index=True, nullable=True)
+    shop_address = Column(String, nullable=True)
+    contact_info = Column(String, nullable=True) # Anonymous or Phone/Email
+    description = Column(Text, nullable=True)
+    
+    # Store evidence image path
+    image_path = Column(String, nullable=False)
+    
+    status = Column(String, default="PENDING") # PENDING, REVIEWED, ACTION_TAKEN
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

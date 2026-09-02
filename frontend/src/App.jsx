@@ -60,6 +60,7 @@ function App() {
     localStorage.removeItem('legal_user');
   };
   const [inspections, setInspections] = useState([])
+  const [complaints, setComplaints] = useState([])
   const [file, setFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -103,7 +104,8 @@ function App() {
 
   useEffect(() => {
     fetchInspections()
-  }, [])
+    if (userRole === 'admin') fetchComplaints()
+  }, [userRole])
 
   const fetchInspections = useCallback(async () => {
     try {
@@ -112,6 +114,16 @@ function App() {
       setInspections(data)
     } catch (err) {
       console.error('Failed to fetch history', err)
+    }
+  }, [])
+
+  const fetchComplaints = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/complaints/`)
+      const data = await res.json()
+      setComplaints(data)
+    } catch (err) {
+      console.error('Failed to fetch complaints', err)
     }
   }, [])
 
@@ -372,6 +384,81 @@ function App() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5); // Top 5
   }, [manufacturerViolations])
+
+  // Simple routing for the public Citizen Report portal
+  const isPublicReportRoute = window.location.pathname === '/report';
+  const [complaintForm, setComplaintForm] = useState({ shop_name: '', shop_address: '', contact_info: '', description: '', file: null });
+  const [complaintSubmitting, setComplaintSubmitting] = useState(false);
+  const [complaintSuccess, setComplaintSuccess] = useState(false);
+
+  if (isPublicReportRoute) {
+    return (
+      <div className="min-h-screen bg-paper flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white p-6 shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] border-2 border-ink">
+          <div className="flex items-center gap-3 mb-6 border-b border-ink/10 pb-4">
+            <div className="bg-slateBlue p-2 rounded-none"><ShieldCheck size={24} className="text-white" /></div>
+            <div>
+              <h1 className="text-xl font-bold font-serif text-ink leading-tight">LegalMetro Citizen Portal</h1>
+              <p className="text-xs text-slate-500">Report violations securely</p>
+            </div>
+          </div>
+          
+          {complaintSuccess ? (
+            <div className="text-center py-8">
+              <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
+              <h2 className="text-lg font-bold text-ink">Report Submitted!</h2>
+              <p className="text-sm text-slateBlue mt-2">Thank you for being a vigilant citizen. Our officers have been notified.</p>
+              <button onClick={() => { setComplaintSuccess(false); setComplaintForm({shop_name: '', shop_address: '', contact_info: '', description: '', file: null}); }} className="mt-6 px-4 py-2 bg-ink text-white font-medium text-sm">Submit Another</button>
+            </div>
+          ) : (
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!complaintForm.file) return alert("Please attach a photo of the product/violation");
+              setComplaintSubmitting(true);
+              const formData = new FormData();
+              formData.append('image', complaintForm.file);
+              formData.append('shop_name', complaintForm.shop_name);
+              formData.append('shop_address', complaintForm.shop_address);
+              formData.append('contact_info', complaintForm.contact_info);
+              formData.append('description', complaintForm.description);
+              try {
+                const res = await fetch(`${API_BASE_URL}/complaints/`, { method: 'POST', body: formData });
+                if (res.ok) setComplaintSuccess(true);
+                else alert("Failed to submit. Please try again.");
+              } catch (error) {
+                alert("Error connecting to server");
+              }
+              setComplaintSubmitting(false);
+            }} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-ink uppercase mb-1">Shop/Market Name *</label>
+                <input required type="text" className="w-full p-2 border border-slate-300 text-sm outline-none" placeholder="e.g. Gupta Store" value={complaintForm.shop_name} onChange={e => setComplaintForm({...complaintForm, shop_name: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-ink uppercase mb-1">Location/Address *</label>
+                <input required type="text" className="w-full p-2 border border-slate-300 text-sm outline-none" placeholder="e.g. Connaught Place, Delhi" value={complaintForm.shop_address} onChange={e => setComplaintForm({...complaintForm, shop_address: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-ink uppercase mb-1">Photo Evidence *</label>
+                <input required type="file" accept="image/*" className="w-full p-2 border border-slate-300 text-sm bg-slate-50" onChange={e => setComplaintForm({...complaintForm, file: e.target.files[0]})} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-ink uppercase mb-1">Description of Issue</label>
+                <textarea rows="2" className="w-full p-2 border border-slate-300 text-sm outline-none" placeholder="e.g. MRP was scratched off" value={complaintForm.description} onChange={e => setComplaintForm({...complaintForm, description: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-ink uppercase mb-1">Your Mobile/Email (Optional)</label>
+                <input type="text" className="w-full p-2 border border-slate-300 text-sm outline-none" placeholder="For updates" value={complaintForm.contact_info} onChange={e => setComplaintForm({...complaintForm, contact_info: e.target.value})} />
+              </div>
+              <button disabled={complaintSubmitting} type="submit" className="w-full py-3 bg-amber-500 text-ink font-bold hover:bg-amber-400 transition-colors shadow-[2px_2px_0px_0px_rgba(15,27,45,1)] border border-ink disabled:opacity-50">
+                {complaintSubmitting ? 'Uploading...' : 'Submit Official Report'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // If not authenticated, render Login Screen
   if (!user) {
@@ -706,7 +793,59 @@ function App() {
                     <p className="text-xs text-slateBlue/80 mt-0.5">Export a legally compliant PDF Report or click "Draft Notice" to automatically email the manufacturer.</p>
                   </div>
                 </div>
-              </div>
+            </div>
+          </div>
+          
+          {/* Public Leads Section */}
+          <div className="mt-8 bg-white rounded-none border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] p-6">
+            <h2 className="text-xl font-bold text-ink mb-2 flex items-center gap-2 font-serif">
+              <AlertTriangle className="text-amber-500" /> Public Complaints & Leads
+            </h2>
+            <p className="text-sm text-slateBlue mb-6">Reports submitted anonymously by citizens via the public portal.</p>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 border-y border-ink/20 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Shop / Location</th>
+                    <th className="px-4 py-3">Issue</th>
+                    <th className="px-4 py-3">Contact</th>
+                    <th className="px-4 py-3">Evidence</th>
+                    <th className="px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {complaints.length === 0 ? (
+                    <tr><td colSpan="6" className="py-8 text-center text-slate-400">No public leads found</td></tr>
+                  ) : complaints.map(c => (
+                    <tr key={c.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-4 text-sm whitespace-nowrap">{new Date(c.created_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-4 text-sm font-medium">{c.shop_name}<br/><span className="text-xs text-slate-400 font-normal">{c.shop_address}</span></td>
+                      <td className="px-4 py-4 text-sm max-w-xs truncate">{c.description || 'N/A'}</td>
+                      <td className="px-4 py-4 text-sm text-slateBlue">{c.contact_info || 'Anonymous'}</td>
+                      <td className="px-4 py-4">
+                        <a href={`${API_BASE_URL.replace('/api/v1', '')}/${c.image_path}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm font-medium">View Image</a>
+                      </td>
+                      <td className="px-4 py-4">
+                        <select 
+                          className="text-xs border border-slate-300 p-1 bg-white outline-none"
+                          value={c.status}
+                          onChange={async (e) => {
+                            const newStatus = e.target.value;
+                            await fetch(`${API_BASE_URL}/complaints/${c.id}/status?status=${newStatus}`, { method: 'PUT' });
+                            fetchComplaints();
+                          }}
+                        >
+                          <option value="PENDING">Pending</option>
+                          <option value="REVIEWED">Reviewed</option>
+                          <option value="ACTION_TAKEN">Action Taken</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </>
