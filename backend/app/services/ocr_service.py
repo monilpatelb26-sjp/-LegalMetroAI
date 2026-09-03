@@ -33,7 +33,7 @@ def process_inspection_image(image_path: str) -> dict:
         img = Image.open(image_path)
         
         # Reverting to gemini-1.5-flash because 3.1 Pro has a 0 quota limit on this API key
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         
         prompt = """
         Analyze this image. It can be a physical product photo OR a screenshot of an E-commerce product listing (like Amazon, Flipkart, Blinkit).
@@ -121,7 +121,7 @@ def process_ecomm_url(url: str) -> dict:
             print(f"Fetch Error: {fetch_err}")
             page_text = "MOCK_E-COMMERCE_DATA: MRP: Rs. 150, Selling Price: Rs. 180, Brand: Nestle, Net Weight: 500g"
             
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         
         prompt = f"""
         You are an expert at reading E-commerce product pages for Legal Metrology enforcement.
