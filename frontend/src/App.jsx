@@ -772,7 +772,19 @@ function App() {
                           <div className="space-y-1.5 text-sm">
                             <div className="grid grid-cols-3 gap-2">
                               <span className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Brand:</span>
-                              <span className="col-span-2 text-ink font-medium">{insp.extracted_data?.brand_name || 'N/A'}</span>
+                              <span className="col-span-2 text-ink font-medium">
+                                {insp.extracted_data?.brand_name || 'N/A'}
+                                {insp.extracted_data?.is_imported && (
+                                  <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                    Imported ({insp.extracted_data?.country_of_origin || 'Unknown'})
+                                  </span>
+                                )}
+                                {insp.extracted_data?.is_wholesale_or_exempt && (
+                                  <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                                    Wholesale / Exempt
+                                  </span>
+                                )}
+                              </span>
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                               <span className="text-slate-500 text-xs uppercase tracking-wider font-semibold">MRP:</span>
@@ -790,19 +802,51 @@ function App() {
                               <span className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Consumer Care:</span>
                               <span className="col-span-2 text-ink">{insp.extracted_data?.consumer_care_details || 'N/A'}</span>
                             </div>
+                            {insp.extracted_data?.unit_sale_price && (
+                              <div className="grid grid-cols-3 gap-2">
+                                <span className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Unit Price:</span>
+                                <span className="col-span-2 text-ink font-medium">{insp.extracted_data.unit_sale_price}</span>
+                              </div>
+                            )}
+                            {insp.extracted_data?.has_qr_code && (
+                              <div className="grid grid-cols-3 gap-2 mt-1">
+                                <span className="col-span-3 inline-flex w-fit items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                                  📷 QR Code Detected on Package
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col items-start gap-2">
                             {insp.is_compliant ? (
-                              <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-none border border-emerald-200 uppercase tracking-wide">
-                                <CheckCircle size={12} /> Compliant
-                              </span>
-                            ) : (
                               <div className="flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-none border border-amber-300 uppercase tracking-wide shadow-sm">
-                                  Violation
+                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-none border border-emerald-200 uppercase tracking-wide">
+                                  <CheckCircle size={12} /> Compliant
                                 </span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-none border border-amber-300 uppercase tracking-wide shadow-sm">
+                                    Violation
+                                  </span>
+                                  {insp.validation_results?.risk_level === 'Critical' && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded-none uppercase tracking-wide shadow-sm animate-pulse">
+                                      Critical Risk (Score: {insp.validation_results?.severity_score})
+                                    </span>
+                                  )}
+                                  {insp.validation_results?.risk_level === 'Medium' && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-500 text-white text-[10px] font-bold rounded-none uppercase tracking-wide shadow-sm">
+                                      Medium Risk (Score: {insp.validation_results?.severity_score})
+                                    </span>
+                                  )}
+                                  {insp.validation_results?.risk_level === 'Low' && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-400 text-yellow-900 text-[10px] font-bold rounded-none uppercase tracking-wide shadow-sm">
+                                      Low Risk
+                                    </span>
+                                  )}
+                                </div>
                                 {(insp.validation_results?.violations || []).some(v => v.includes("MRP")) && (
                                   <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-none border border-amber-200 uppercase tracking-wide">
                                     E-Challan: ₹55,000
