@@ -20,6 +20,12 @@ def process_inspection_image(image_path: str) -> dict:
         "manufacturer": None,
         "consumer_care": None,
         "barcode": None,
+        "is_wholesale_or_exempt": False,
+        "is_imported": False,
+        "country_of_origin": None,
+        "has_qr_code": False,
+        "unit_sale_price": None,
+        "font_readability_score": "Average",
         "raw_text": "Failed to extract with Gemini"
     }
 
@@ -44,6 +50,12 @@ def process_inspection_image(image_path: str) -> dict:
         - has_inclusive_of_all_taxes: Boolean (true/false). Does the MRP text explicitly state "inclusive of all taxes" or "USP" format?
         - is_bilingual: Boolean (true/false). Is there any Hindi / Devanagari script present on the label alongside English?
         - confidence_score: Integer (0-100). How confident are you in the accuracy of this extraction overall?
+        - is_wholesale_or_exempt: Boolean (true/false). Does the label say "Not for Retail Sale", "Wholesale Package", "Multi-piece package", or similar exemptions?
+        - is_imported: Boolean (true/false). Does the label mention it is imported or list an importer?
+        - country_of_origin: String (e.g. "China", "USA"). If it is imported, extract the country of origin. Else null.
+        - has_qr_code: Boolean (true/false). Is there a visible QR code on the package?
+        - unit_sale_price: String (e.g. "Rs 0.20/g"). Extract the Unit Sale Price if present. Else null.
+        - font_readability_score: String. Strictly evaluate if the font size of the mandatory declarations appears to meet the 1mm/2mm minimum height rules relative to package size. Return "Compliant", "Borderline", or "Too Small".
         
         Return ONLY a raw JSON object matching these exact keys. Do not include markdown formatting like ```json or any other text.
         """
@@ -86,6 +98,12 @@ def process_ecomm_url(url: str) -> dict:
         "manufacturer": None,
         "consumer_care": None,
         "barcode": None,
+        "is_wholesale_or_exempt": False,
+        "is_imported": False,
+        "country_of_origin": None,
+        "has_qr_code": False,
+        "unit_sale_price": None,
+        "font_readability_score": "Compliant",
         "raw_text": "Failed to extract with Gemini"
     }
 
@@ -117,6 +135,12 @@ def process_ecomm_url(url: str) -> dict:
         - manufacturer: The Manufacturer or Marketed By Name (or null)
         - consumer_care: The Consumer Care Phone/Email (or null)
         - barcode: EAN barcode (or null)
+        - is_wholesale_or_exempt: Boolean (true/false)
+        - is_imported: Boolean (true/false)
+        - country_of_origin: String (or null)
+        - has_qr_code: Boolean (true/false)
+        - unit_sale_price: String (or null)
+        - font_readability_score: String (always return "Compliant" for e-commerce)
         
         Raw Page Text to analyze:
         '''
