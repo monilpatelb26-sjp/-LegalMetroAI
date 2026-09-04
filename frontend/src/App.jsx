@@ -669,59 +669,6 @@ function App() {
             </div>
           </div>
           
-          {/* Public Leads Section */}
-          <div className="mt-8 bg-white rounded-none border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] p-6">
-            <h2 className="text-xl font-bold text-ink mb-2 flex items-center gap-2 font-serif">
-              <AlertTriangle className="text-amber-500" /> Public Complaints & Leads
-            </h2>
-            <p className="text-sm text-slateBlue mb-6">Reports submitted anonymously by citizens via the public portal.</p>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-y border-ink/20 text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Shop / Location</th>
-                    <th className="px-4 py-3">Issue</th>
-                    <th className="px-4 py-3">Contact</th>
-                    <th className="px-4 py-3">Evidence</th>
-                    <th className="px-4 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {complaints.length === 0 ? (
-                    <tr><td colSpan="6" className="py-8 text-center text-slate-400">No public leads found</td></tr>
-                  ) : complaints.map(c => (
-                    <tr key={c.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-4 text-sm whitespace-nowrap">{new Date(c.created_at).toLocaleDateString()}</td>
-                      <td className="px-4 py-4 text-sm font-medium">{c.shop_name}<br/><span className="text-xs text-slate-400 font-normal">{c.shop_address}</span></td>
-                      <td className="px-4 py-4 text-sm max-w-xs truncate">{c.description || 'N/A'}</td>
-                      <td className="px-4 py-4 text-sm text-slateBlue">{c.contact_info || 'Anonymous'}</td>
-                      <td className="px-4 py-4">
-                        <a href={`${API_BASE_URL.replace('/api/v1', '')}/${c.image_path}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm font-medium">View Image</a>
-                      </td>
-                      <td className="px-4 py-4">
-                        <select 
-                          className="text-xs border border-slate-300 p-1 bg-white outline-none"
-                          value={c.status}
-                          onChange={async (e) => {
-                            const newStatus = e.target.value;
-                            await fetch(`${API_BASE_URL}/complaints/${c.id}/status?status=${newStatus}`, { method: 'PUT' });
-                            fetchComplaints();
-                          }}
-                        >
-                          <option value="PENDING">Pending</option>
-                          <option value="REVIEWED">Reviewed</option>
-                          <option value="ACTION_TAKEN">Action Taken</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-          </div>
           {/* Public Complaints & Leads Table */}
           <div className="mt-8 bg-white rounded-none border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] rounded-none overflow-hidden">
             <div className="p-6 border-b border-ink/20 bg-amber-50">
