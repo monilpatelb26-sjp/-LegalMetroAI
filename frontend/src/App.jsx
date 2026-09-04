@@ -3,6 +3,7 @@ import Webcam from 'react-webcam'
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google'
 import { jwtDecode } from 'jwt-decode'
 import { 
+  Barcode,
   UploadCloud, 
   CheckCircle, 
   XCircle, 
