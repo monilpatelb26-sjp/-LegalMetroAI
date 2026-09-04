@@ -72,7 +72,7 @@ function App() {
   
   const [searchQuery, setSearchQuery] = useState('')
   const [currentView, setCurrentView] = useState(() => localStorage.getItem('legal_user') ? 'dashboard' : 'scanner');
-  const [scanMode, setScanMode] = useState('file') // 'file', 'camera', 'url'
+  const [scanMode, setScanMode] = useState('file') // 'file', 'camera', 'url', 'barcode'
   const [urlInput, setUrlInput] = useState('')
   const [filterStatus, setFilterStatus] = useState('ALL') // ALL, COMPLIANT, NON_COMPLIANT
   const [filterDateFrom, setFilterDateFrom] = useState('')
@@ -238,7 +238,19 @@ function App() {
       }
     } catch (error) {
       console.error("Error uploading file:", error)
-      if (!user) alert('Failed to scan. Please try again.');
+      if (!user) {
+        // Mock fallback if Render is sleeping
+        setCurrentInspection({
+           id: Date.now(),
+           scan_date: new Date().toISOString(),
+           is_compliant: false,
+           inspector_id: 'PUBLIC',
+           image_path: 'temp_mock',
+           extracted_data: { brand_name: "Failed to connect to backend", mrp: "N/A" },
+           validation_results: { violations: ["Could not reach enforcement server. Backend may be asleep."] }
+        });
+        setSubmitSuccess(false);
+      }
     } finally {
       setUploading(false)
     }
@@ -287,69 +299,133 @@ function App() {
     }
   }
 
-  const generatePDF = (insp) => {
+  const generatePDF = async (insp) => {
     const doc = new jsPDF()
     
-    doc.setFontSize(20)
-    doc.setTextColor(30, 58, 138)
-    doc.text("Legal Metrology Compliance Report", 14, 22)
+    // Header
+    doc.setFontSize(22)
+    doc.setTextColor(15, 27, 45) // Ink
+    doc.text("LEGAL METROLOGY", 14, 20)
+    doc.setFontSize(16)
+    doc.text("COMPLIANCE REPORT", 14, 28)
     
-    doc.setFontSize(10)
-    doc.setTextColor(100)
-    doc.text(`Report ID: LM-${insp.id}-${Date.now().toString().slice(-4)}`, 14, 30)
-    doc.text(`Date of Inspection: ${new Date(insp.scan_date).toLocaleString()}`, 14, 36)
+    doc.setFontSize(11)
+    doc.setTextColor(71, 85, 105) // Slate
+    doc.text(`Product: ${insp.extracted_data?.brand_name || 'Unknown Brand'}`, 14, 40)
+    doc.text(`Date: ${new Date(insp.scan_date).toLocaleDateString()}`, 14, 46)
     
+    // Status
     doc.setFontSize(14)
     if (insp.is_compliant) {
-      doc.setTextColor(21, 128, 61)
-      doc.text("STATUS: COMPLIANT (PASS)", 14, 48)
+      doc.setTextColor(16, 185, 129) // Emerald
+      doc.text("Status: COMPLIANT", 14, 58)
     } else {
-      doc.setTextColor(225, 29, 72)
-      doc.text("STATUS: NON-COMPLIANT (FAIL)", 14, 48)
-    }
-
-    autoTable(doc, {
-      startY: 55,
-      head: [['Field', 'Extracted Value']],
-      body: [
-        ['Maximum Retail Price (MRP)', insp.extracted_data?.mrp ? `Rs. ${insp.extracted_data.mrp}` : 'Not Found / Unreadable'],
-        ['Net Quantity', insp.extracted_data?.net_quantity || 'Not Found / Unreadable'],
-        ['Month & Year of Mfg', insp.extracted_data?.mfg_date || 'Not Found / Unreadable'],
-        ['Manufacturer Details', insp.extracted_data?.manufacturer || 'Not Found / Unreadable'],
-        ['Consumer Care Details', insp.extracted_data?.consumer_care || 'Not Found / Unreadable'],
-      ],
-      theme: 'grid',
-      headStyles: { fillColor: [30, 58, 138] }
-    })
-
-    let nextY = doc.lastAutoTable.finalY + 15
-    if (!insp.is_compliant && insp.validation_results?.violations) {
+      doc.setTextColor(225, 29, 72) // Rose
+      doc.text("Status: NON-COMPLIANT", 14, 58)
+      
+      // Violations
       doc.setFontSize(12)
-      doc.setTextColor(225, 29, 72)
-      doc.text("Violations Detected (As per LM Rules 2011):", 14, nextY)
+      doc.setTextColor(15, 27, 45)
+      doc.text("Violations:", 14, 70)
       
       doc.setFontSize(10)
-      doc.setTextColor(50)
-      let yOffset = nextY + 8
-      insp.validation_results.violations.forEach((v, index) => {
-        doc.text(`${index + 1}. ${v.replace('Violation: ', '')}`, 14, yOffset)
-        yOffset += 6
+      doc.setTextColor(71, 85, 105)
+      let vY = 76
+      insp.validation_results?.violations?.forEach((v, index) => {
+        // Strip out prefixes for cleaner look
+        let text = v.replace(/^(Violation:|Format Violation:|Placement Violation:|Wholesale Violation:|Import Violation:)\s*/i, '');
+        doc.text(`${index + 1}. ??? ${text}`, 14, vY)
+        vY += 6
       })
       
-      if (insp.validation_results.total_fine) {
-        yOffset += 10
-        doc.setFontSize(14)
-        doc.setTextColor(180, 83, 9) // Amber color for E-Challan
-        doc.text(`E-CHALLAN GENERATED: Rs. ${insp.validation_results.total_fine.toLocaleString()}`, 14, yOffset)
+      if (insp.validation_results?.severity_score) {
+         doc.setTextColor(225, 29, 72)
+         doc.text(`Risk Score: ${insp.validation_results.severity_score}/100 (${insp.validation_results.risk_level.toUpperCase()})`, 14, vY + 2)
       }
-      nextY = yOffset
     }
-
+    
+    // Evidence Image
+    let nextY = insp.is_compliant ? 70 : 100
+    doc.setFontSize(12)
+    doc.setTextColor(15, 27, 45)
+    doc.text("Evidence:", 14, nextY)
+    
+    const imgUrl = `${API_BASE_URL.replace('/api/v1', '')}/${insp.image_path}`
+    
+    try {
+      // Async load image to get dimensions
+      const img = new Image()
+      img.crossOrigin = "Anonymous"
+      img.src = imgUrl
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = reject
+      })
+      
+      // Calculate aspect ratio
+      const maxWidth = 100
+      const maxHeight = 80
+      let w = img.width
+      let h = img.height
+      const ratio = Math.min(maxWidth / w, maxHeight / h)
+      w = w * ratio
+      h = h * ratio
+      
+      doc.addImage(img, 'JPEG', 14, nextY + 5, w, h)
+      
+      // Watermark
+      if (!insp.is_compliant) {
+        doc.setTextColor(220, 38, 38)
+        doc.setFontSize(20)
+        doc.text("EVIDENCE OF VIOLATION", 14 + (w/2) - 40, nextY + 5 + (h/2), { angle: 30 })
+      }
+      
+      nextY = nextY + h + 15
+    } catch(e) {
+      doc.setFontSize(10)
+      doc.setTextColor(150)
+      doc.text("[Image Evidence Unavailable]", 14, nextY + 10)
+      nextY += 20
+    }
+    
+    // OCR Data
+    doc.setFontSize(12)
+    doc.setTextColor(15, 27, 45)
+    doc.text("OCR Data:", 14, nextY)
+    
+    autoTable(doc, {
+      startY: nextY + 5,
+      head: [['Field', 'Extracted Value']],
+      body: [
+        ['Brand Name', insp.extracted_data?.brand_name || 'N/A'],
+        ['MRP', insp.extracted_data?.mrp ? `Rs. ${insp.extracted_data.mrp}` : 'N/A'],
+        ['Net Quantity', insp.extracted_data?.net_quantity || 'N/A'],
+        ['Mfg Date', insp.extracted_data?.mfg_date || 'N/A'],
+        ['Unit Price', insp.extracted_data?.unit_sale_price || 'N/A'],
+        ['Imported', insp.extracted_data?.is_imported ? `Yes (${insp.extracted_data?.country_of_origin})` : 'No']
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [15, 27, 45] }
+    })
+    
+    nextY = doc.lastAutoTable.finalY + 15
+    
+    // Footer
+    doc.setFontSize(10)
+    doc.setTextColor(15, 27, 45)
+    doc.text("Inspector:", 14, nextY)
     doc.setFontSize(9)
-    doc.setTextColor(150)
-    doc.text("This is an AI-generated preliminary compliance report based on OCR extraction.", 14, 280)
-    doc.text("Verified by: LegalMetro AI System", 14, 285)
-
+    doc.setTextColor(71, 85, 105)
+    doc.text(insp.inspector_id === 'PUBLIC' ? 'Public Complaint Portal' : insp.inspector_id, 14, nextY + 6)
+    
+    doc.setFontSize(10)
+    doc.setTextColor(15, 27, 45)
+    doc.text("Report ID:", 14, nextY + 16)
+    doc.setFontSize(9)
+    doc.setTextColor(71, 85, 105)
+    doc.text(`LM-${insp.id}-${Date.now().toString().slice(-4)}`, 14, nextY + 22)
+    
     doc.save(`Compliance_Report_${insp.id}.pdf`)
   }
 
@@ -1337,7 +1413,20 @@ function App() {
                           if (file) {
                             const reader = new FileReader();
                             reader.onloadend = () => {
-                              setUserProfile({...userProfile, customPhoto: reader.result});
+                              const img = new Image();
+                              img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                const MAX = 300;
+                                let w = img.width, h = img.height;
+                                if (w > h) { if (w > MAX) { h *= MAX/w; w = MAX; } }
+                                else { if (h > MAX) { w *= MAX/h; h = MAX; } }
+                                canvas.width = w; canvas.height = h;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0, w, h);
+                                const resized = canvas.toDataURL('image/jpeg', 0.8);
+                                setUserProfile({...userProfile, customPhoto: resized});
+                              };
+                              img.src = reader.result;
                             };
                             reader.readAsDataURL(file);
                           }
