@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Webcam from 'react-webcam'
+import { Html5Qrcode } from 'html5-qrcode'
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google'
 import { jwtDecode } from 'jwt-decode'
 import { 
@@ -1042,24 +1043,58 @@ function App() {
               </div>
             </div>
             
-                        {/* Barcode Scanner Box */}
+                                    {/* Barcode Scanner Box */}
             <div className="mt-6 bg-white rounded-none border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] rounded-none overflow-hidden mb-6">
-              <div className="p-4 border-b border-ink/20 bg-blue-50">
+              <div className="p-4 border-b border-ink/20 bg-amber-50">
                 <div className="flex items-center gap-3">
                   <div className="bg-white p-1.5 border border-ink/20 text-ink">
                     <Barcode size={18} />
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-ink font-serif leading-tight">Barcode Scanner</h2>
-                    <p className="text-sm text-slateBlue/80 mt-1">Directly fetch product details</p>
+                    <p className="text-sm text-slateBlue/80 mt-1">Scan barcode photo or enter manually</p>
                   </div>
                 </div>
               </div>
               <div className="p-6 flex flex-col items-center">
+                
+                {/* Upload Image Section */}
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-none cursor-pointer bg-paper hover:bg-slate-100 transition-colors mb-4">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <UploadCloud className="w-8 h-8 text-amber-500 mb-2" />
+                    <p className="text-sm text-slateBlue font-bold">Upload Barcode Photo to Scan</p>
+                  </div>
+                  <input type="file" className="hidden" accept="image/*" capture="environment" onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    setUploading(true);
+                    const html5QrCode = new Html5Qrcode("reader-hidden");
+                    html5QrCode.scanFile(file, true)
+                      .then(decodedText => {
+                        setUrlInput(decodedText);
+                        alert(`Barcode detected: ${decodedText}`);
+                      })
+                      .catch(err => {
+                        alert("Could not detect barcode in this image. Try another clear photo.");
+                      })
+                      .finally(() => {
+                        setUploading(false);
+                      });
+                  }} />
+                </label>
+                
+                <div id="reader-hidden" style={{display: 'none'}}></div>
+                
+                <div className="flex w-full items-center gap-4 mb-4">
+                  <div className="flex-1 h-px bg-slate-300"></div>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">OR ENTER MANUALLY</span>
+                  <div className="flex-1 h-px bg-slate-300"></div>
+                </div>
+
                 <div className="flex w-full gap-2">
                   <input 
                     type="text" 
-                    placeholder="Enter 13-digit Barcode (e.g. 8901058016222)" 
+                    placeholder="Enter Barcode (e.g. 8901058016222)" 
                     value={urlInput}
                     onChange={(e) => setUrlInput(e.target.value)}
                     className="flex-1 px-4 py-2 border-2 border-slate-300 focus:border-amber-500 outline-none text-ink font-mono"
@@ -1072,32 +1107,62 @@ function App() {
                         const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${urlInput}.json`);
                         const data = await res.json();
                         if (data.status === 1) {
-                          const mockInspection = {
-                            id: Date.now(),
-                            scan_date: new Date().toISOString(),
-                            image_path: data.product.image_url || '',
-                            is_compliant: true,
-                            inspector_id: user ? (user.name || 'Admin') : 'PUBLIC',
-                            is_barcode_scan: true, // Tag to display card for Admin too
-                            extracted_data: {
+                          // Check if it's illegal/compliant based on missing MRP (mock logic)
+                          const isCompliant = !!data.product.manufacturing_places; // If it has manufacturer it's "legal" for demo
+                          
+                          if (user) {
+                            // ADMIN: Directly POST to backend and save to database!
+                            const payload = {
                               brand_name: data.product.brands || 'Unknown',
-                              mrp: null,
                               net_quantity: data.product.quantity || 'Unknown',
-                              mfg_date: null,
                               manufacturer: data.product.manufacturing_places || 'Unknown',
-                              consumer_care: null,
-                              barcode: data.code
-                            },
-                            validation_results: {
-                              violations: [],
-                              penalties: [],
-                              total_fine: 0,
-                              severity_score: 0,
-                              risk_level: 'None'
+                              barcode: data.code,
+                              is_compliant: isCompliant,
+                              inspector_id: user.name || 'Admin',
+                              image_url: data.product.image_url || ''
+                            };
+                            
+                            const saveRes = await fetch(`${API_BASE_URL}/barcode/barcode-save`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(payload)
+                            });
+                            
+                            if (saveRes.ok) {
+                              alert(`Barcode scanned & added directly to Dashboard!
+Status: ${isCompliant ? 'COMPLIANT' : 'NON-COMPLIANT (ILLEGAL)'}`);
+                              setUrlInput('');
+                              fetchInspections(); // Refresh table
                             }
-                          };
-                          setCurrentInspection(mockInspection);
-                          setSubmitSuccess(false);
+                          } else {
+                            // PUBLIC: Just show the card so they can send it
+                            const mockInspection = {
+                              id: Date.now(),
+                              scan_date: new Date().toISOString(),
+                              image_path: data.product.image_url || '',
+                              is_compliant: isCompliant,
+                              inspector_id: 'PUBLIC',
+                              is_barcode_scan: true, // Tag to display card
+                              extracted_data: {
+                                brand_name: data.product.brands || 'Unknown',
+                                mrp: null,
+                                net_quantity: data.product.quantity || 'Unknown',
+                                mfg_date: null,
+                                manufacturer: data.product.manufacturing_places || 'Unknown',
+                                consumer_care: null,
+                                barcode: data.code
+                              },
+                              validation_results: {
+                                violations: isCompliant ? [] : ["Barcode product validation failed. Missing mandatory manufacturer data (Illegal)."],
+                                penalties: [],
+                                total_fine: 0,
+                                severity_score: isCompliant ? 0 : 100,
+                                risk_level: isCompliant ? 'None' : 'Critical'
+                              }
+                            };
+                            setCurrentInspection(mockInspection);
+                            setSubmitSuccess(false);
+                          }
                         } else {
                           alert('Barcode not found in global registry.');
                         }
@@ -1110,7 +1175,7 @@ function App() {
                     disabled={uploading}
                     className="bg-ink hover:bg-slate-800 text-white font-bold py-2 px-6 transition-colors disabled:opacity-50"
                   >
-                    {uploading ? 'Searching...' : 'Scan Barcode'}
+                    {uploading ? 'Scanning...' : 'Scan / Fetch'}
                   </button>
                 </div>
               </div>
