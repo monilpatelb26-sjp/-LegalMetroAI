@@ -1041,8 +1041,82 @@ function App() {
               </div>
             </div>
             
+                        {/* Barcode Scanner Box */}
+            <div className="mt-6 bg-white rounded-none border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] rounded-none overflow-hidden mb-6">
+              <div className="p-4 border-b border-ink/20 bg-blue-50">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white p-1.5 border border-ink/20 text-ink">
+                    <Barcode size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-ink font-serif leading-tight">Barcode Scanner</h2>
+                    <p className="text-sm text-slateBlue/80 mt-1">Directly fetch product details</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6 flex flex-col items-center">
+                <div className="flex w-full gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Enter 13-digit Barcode (e.g. 8901058016222)" 
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    className="flex-1 px-4 py-2 border-2 border-slate-300 focus:border-amber-500 outline-none text-ink font-mono"
+                  />
+                  <button 
+                    onClick={async () => {
+                      if (!urlInput.trim()) return;
+                      setUploading(true);
+                      try {
+                        const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${urlInput}.json`);
+                        const data = await res.json();
+                        if (data.status === 1) {
+                          const mockInspection = {
+                            id: Date.now(),
+                            scan_date: new Date().toISOString(),
+                            image_path: data.product.image_url || '',
+                            is_compliant: true,
+                            inspector_id: user ? (user.name || 'Admin') : 'PUBLIC',
+                            is_barcode_scan: true, // Tag to display card for Admin too
+                            extracted_data: {
+                              brand_name: data.product.brands || 'Unknown',
+                              mrp: null,
+                              net_quantity: data.product.quantity || 'Unknown',
+                              mfg_date: null,
+                              manufacturer: data.product.manufacturing_places || 'Unknown',
+                              consumer_care: null,
+                              barcode: data.code
+                            },
+                            validation_results: {
+                              violations: [],
+                              penalties: [],
+                              total_fine: 0,
+                              severity_score: 0,
+                              risk_level: 'None'
+                            }
+                          };
+                          setCurrentInspection(mockInspection);
+                          setSubmitSuccess(false);
+                        } else {
+                          alert('Barcode not found in global registry.');
+                        }
+                      } catch (err) {
+                        alert('Error fetching barcode data.');
+                      } finally {
+                        setUploading(false);
+                      }
+                    }}
+                    disabled={uploading}
+                    className="bg-ink hover:bg-slate-800 text-white font-bold py-2 px-6 transition-colors disabled:opacity-50"
+                  >
+                    {uploading ? 'Searching...' : 'Scan Barcode'}
+                  </button>
+                </div>
+              </div>
+            </div>
+            
             {/* Public Results Card */}
-            {!user && currentInspection && (
+            {(!user || currentInspection?.is_barcode_scan) && currentInspection && (
               <div className="bg-white rounded-none border-2 border-ink shadow-[4px_4px_0px_0px_rgba(15,27,45,1)] p-6">
                 <h3 className="text-lg font-bold font-serif text-ink mb-4 border-b border-ink/10 pb-2">Analysis Results</h3>
                 
