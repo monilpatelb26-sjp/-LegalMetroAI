@@ -1064,22 +1064,37 @@ function App() {
                     <UploadCloud className="w-8 h-8 text-amber-500 mb-2" />
                     <p className="text-sm text-slateBlue font-bold">Upload Barcode Photo to Scan</p>
                   </div>
-                  <input type="file" className="hidden" accept="image/*" capture="environment" onChange={(e) => {
+                                    <input type="file" className="hidden" accept="image/*" capture="environment" onChange={(e) => {
                     const file = e.target.files[0];
                     if (!file) return;
                     setUploading(true);
-                    const html5QrCode = new Html5Qrcode("reader-hidden");
-                    html5QrCode.scanFile(file, true)
-                      .then(decodedText => {
-                        setUrlInput(decodedText);
-                        alert(`Barcode detected: ${decodedText}`);
-                      })
-                      .catch(err => {
-                        alert("Could not detect barcode in this image. Try another clear photo.");
-                      })
-                      .finally(() => {
-                        setUploading(false);
-                      });
+                    
+                    // Downscale image before scanning for better performance/reliability on mobile
+                    const img = new Image();
+                    img.onload = () => {
+                       const canvas = document.createElement('canvas');
+                       const MAX = 1200;
+                       let w = img.width, h = img.height;
+                       if (w > h && w > MAX) { h *= MAX/w; w = MAX; }
+                       else if (h > MAX) { w *= MAX/h; h = MAX; }
+                       canvas.width = w; canvas.height = h;
+                       const ctx = canvas.getContext('2d');
+                       ctx.drawImage(img, 0, 0, w, h);
+                       canvas.toBlob(blob => {
+                          const safeFile = new File([blob], "barcode.jpg", {type: "image/jpeg"});
+                          const html5QrCode = new Html5Qrcode("reader-hidden");
+                          html5QrCode.scanFile(safeFile, true)
+                            .then(decodedText => {
+                              setUrlInput(decodedText);
+                              setTimeout(() => { document.getElementById('barcode-fetch-btn')?.click(); }, 300);
+                            })
+                            .catch(err => {
+                              alert("Could not detect barcode. Please ensure it is clear, or type it manually.");
+                            })
+                            .finally(() => setUploading(false));
+                       }, "image/jpeg", 0.9);
+                    };
+                    img.src = URL.createObjectURL(file);
                   }} />
                 </label>
                 
@@ -1100,6 +1115,7 @@ function App() {
                     className="flex-1 px-4 py-2 border-2 border-slate-300 focus:border-amber-500 outline-none text-ink font-mono"
                   />
                   <button 
+                    id="barcode-fetch-btn"
                     onClick={async () => {
                       if (!urlInput.trim()) return;
                       setUploading(true);
@@ -1135,33 +1151,32 @@ Status: ${isCompliant ? 'COMPLIANT' : 'NON-COMPLIANT (ILLEGAL)'}`);
                               fetchInspections(); // Refresh table
                             }
                           } else {
-                            // PUBLIC: Just show the card so they can send it
-                            const mockInspection = {
-                              id: Date.now(),
-                              scan_date: new Date().toISOString(),
-                              image_path: data.product.image_url || '',
+                            // PUBLIC: Post to backend directly like admin, but with 'PUBLIC' tag
+                            const payload = {
+                              brand_name: data.product.brands || 'Unknown',
+                              net_quantity: data.product.quantity || 'Unknown',
+                              manufacturer: data.product.manufacturing_places || 'Unknown',
+                              barcode: data.code,
                               is_compliant: isCompliant,
                               inspector_id: 'PUBLIC',
-                              is_barcode_scan: true, // Tag to display card
-                              extracted_data: {
-                                brand_name: data.product.brands || 'Unknown',
-                                mrp: null,
-                                net_quantity: data.product.quantity || 'Unknown',
-                                mfg_date: null,
-                                manufacturer: data.product.manufacturing_places || 'Unknown',
-                                consumer_care: null,
-                                barcode: data.code
-                              },
-                              validation_results: {
-                                violations: isCompliant ? [] : ["Barcode product validation failed. Missing mandatory manufacturer data (Illegal)."],
-                                penalties: [],
-                                total_fine: 0,
-                                severity_score: isCompliant ? 0 : 100,
-                                risk_level: isCompliant ? 'None' : 'Critical'
-                              }
+                              image_url: data.product.image_url || ''
                             };
-                            setCurrentInspection(mockInspection);
-                            setSubmitSuccess(false);
+                            
+                            const saveRes = await fetch(`${API_BASE_URL}/barcode/barcode-save`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(payload)
+                            });
+                            
+                            if (saveRes.ok) {
+                               const result = await saveRes.json();
+                               result.is_barcode_scan = true;
+                               setCurrentInspection(result);
+                               setSubmitSuccess(false);
+                               fetchInspections(); // Refresh table so admin sees it
+                            } else {
+                               alert('Failed to send barcode data to server.');
+                            }
                           }
                         } else {
                           alert('Barcode not found in global registry.');
