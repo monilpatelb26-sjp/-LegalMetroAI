@@ -352,7 +352,7 @@ function App() {
     doc.setTextColor(15, 27, 45)
     doc.text("Evidence:", 14, nextY)
     
-    const imgUrl = `${API_BASE_URL.replace('/api/v1', '')}/${insp.image_path}`
+    const imgUrl = insp.image_path?.startsWith('http') ? insp.image_path : `${API_BASE_URL.replace('/api/v1', '')}/${insp.image_path}`
     
     try {
       // Async load image to get dimensions
@@ -774,7 +774,7 @@ function App() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="w-16 h-16 rounded-none overflow-hidden border border-ink/20 shadow-sm bg-white">
                             <img 
-                              src={`${API_BASE_URL.replace('/api/v1', '')}/${insp.image_paths[0]}`}
+                              src={insp.image_paths[0]?.startsWith('http') ? insp.image_paths[0] : `${API_BASE_URL.replace('/api/v1', '')}/${insp.image_paths[0]}`}
                               alt="Product Label" 
                               className="w-full h-full object-cover"
                               onError={(e) => { e.target.src = 'https://via.placeholder.com/150?text=No+Image' }}
